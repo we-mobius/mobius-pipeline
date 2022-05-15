@@ -1,9 +1,9 @@
 {
-  "name": "Mobius Utils API",
+  "name": "Mobius Pipeline API",
   "readme": "none",
   "includeVersion": true,
   "entryPoints": [
-    "./src/main.ts"
+    "./src/entries/main.ts"
   ],
   "out": "./docs/api",
   "tsconfig": "./tsconfig.json",
