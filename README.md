@@ -22,7 +22,7 @@
 
 ## Details
 
-![details of product](./public/assets/details.png)
+...
 
 ## Documentation
 
