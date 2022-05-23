@@ -2,7 +2,7 @@
   "name": "@we-mobius/mobius-pipeline",
   "version": "0.1.0",
   "description": "🖇️ Nothing but another next generation JavaScript tool chain.",
-  "type": "module",
+
   "typings": "./typings/main.d.ts",
   "types": "./typings/main.d.ts",
   "main": "./release/modules/cjs/main.cjs",
@@ -110,6 +110,7 @@
   },
   "homepage": "https://github.com/we-mobius/mobius-pipeline#readme",
   "devDependencies": {
+    "@swc-node/register": "^1.5.1",
     "@typescript-eslint/eslint-plugin": "^4.30.0",
     "@typescript-eslint/parser": "^4.30.0",
     "chalk": "^2.4.2",
