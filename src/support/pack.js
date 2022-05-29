@@ -1,8 +1,8 @@
 import { build } from 'esbuild'
 
 build({
-  entryPoints: ['./src/support/ts-loader.ts'],
-  outfile: './dist/support/ts-loader.js',
+  entryPoints: ['./src/support/loader.ts'],
+  outfile: './dist/support/loader.js',
   platform: 'node'
   // bundle: true,
   // external: ['./node_modules/*']
