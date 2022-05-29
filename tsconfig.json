@@ -149,7 +149,8 @@
      * 因为 tsconfig.json 中的选项只用于 ts-loader transpile 和给编辑器看，
      * .d.ts 和 .js 的生成使用 typescript compile API 自定义
      */
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "public/examples/**/*.ts"
   ],
   "exclude": [
     "node_modules",
