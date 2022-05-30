@@ -37,6 +37,9 @@ export interface ResolveHookResult {
 export type ResolveHookOfESMLoader = (
   specifier: string, context: ResolveHookContext, defaultResolve: ResolveHookOfESMLoader
 ) => Promise<ResolveHookResult>
+export type ChildResolveHookOfESMLoader = (
+  specifier: string, context: ResolveHookContext, defaultResolve: ResolveHookOfESMLoader, parentResolve: ResolveHookOfESMLoader
+) => Promise<ResolveHookResult>
 
 export interface LoadHookContext {
   format?: string | undefined | null
