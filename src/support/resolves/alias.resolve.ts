@@ -1,112 +1,65 @@
 import * as path from 'node:path'
-import * as fs from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { getResponsibleTSConfig, getResponsibleJSConfig } from '../common/config'
+import { LoggerForResolve as Logger } from '../common/logger'
+
 import type { ChildResolveHookOfESMLoader } from '../loaders'
-
-const readJSONFileAsValue = (pathOfJSON: string): any => {
-  const JSONString = fs.readFileSync(pathOfJSON, { encoding: 'utf8' })
-  try {
-    // eslint-disable-next-line no-eval
-    return eval(`(${JSONString})`)
-  } catch (error) {
-    console.log(`[readJSONFileAsValue] failed: ${pathOfJSON}`)
-    return undefined
-  }
-}
-
-const isTopDirectory = (targetPath: string): boolean => {
-  const normalizedTargetPath = path.normalize(targetPath)
-  return normalizedTargetPath === path.dirname(normalizedTargetPath)
-}
-
-const findResponsibleFilePath = (targetPath: string, filename: string): string | undefined => {
-  const normalizedTargetPath = path.normalize(targetPath)
-  // 从目标文件所在目录开始，逐级上翻，直到找到一个目标文件名的文件
-  if (normalizedTargetPath.endsWith('/') || normalizedTargetPath.endsWith('\\') || normalizedTargetPath.endsWith(path.sep)) {
-    return findResponsibleFilePath(path.resolve(normalizedTargetPath, '__placeholder__'), filename)
-  } else {
-    const dirname = path.dirname(normalizedTargetPath)
-    const assumedPackageJSONPath = path.resolve(dirname, filename)
-    if (fs.existsSync(assumedPackageJSONPath)) {
-      return assumedPackageJSONPath
-    } else {
-      // 已经是顶级目录了，没有找到就是没有
-      if (isTopDirectory(normalizedTargetPath)) {
-        return undefined
-      } else {
-        // 如果不是顶级目录，上翻一级
-        return findResponsibleFilePath(dirname, filename)
-      }
-    }
-  }
-}
-
-const findResponsibleTSConfigPath = (targetPath: string): string | undefined => {
-  return findResponsibleFilePath(targetPath, 'tsconfig.json')
-}
-const findResponsibleJSConfigPath = (targetPath: string): string | undefined => {
-  return findResponsibleFilePath(targetPath, 'jsconfig.json')
-}
-const findResponsiblePackageJSONFilePath = (targetPath: string): string | undefined => {
-  return findResponsibleFilePath(targetPath, 'package.json')
-}
 
 interface AliasConfig {
   files: Record<string, string[]>
   directorys: Record<string, string[]>
 }
 const getResponsibleAliasConfig = (specifier: string): AliasConfig | undefined => {
-  const tsConfigFilePath = findResponsibleTSConfigPath(specifier)
+  // Why don't extract `getResponsibleConfig` alone, cause `jsconfig` & `tsconfig` can be different.
+  const responsibleTSConfig = getResponsibleTSConfig(specifier)
   let initialConfig: undefined | { baseUrl: string, paths: Record<string, string[]> }
-
-  if (tsConfigFilePath !== undefined) {
-    const tsConfigValue = readJSONFileAsValue(tsConfigFilePath)
-    if (tsConfigValue?.compilerOptions?.paths !== undefined) {
+  if (responsibleTSConfig !== undefined) {
+    const { configFilePath, configValue } = responsibleTSConfig
+    // @see https://www.typescriptlang.org/tsconfig#paths
+    if (configValue?.compilerOptions?.paths !== undefined) {
       initialConfig = {
-        baseUrl: path.resolve(path.dirname(tsConfigFilePath), tsConfigValue.compilerOptions.baseUrl ?? '.'),
-        paths: tsConfigValue.compilerOptions.paths
+        baseUrl: path.resolve(path.dirname(configFilePath), configValue.compilerOptions.baseUrl ?? '.'),
+        paths: configValue.compilerOptions.paths
       }
     }
   }
-
   if (initialConfig === undefined) {
-    const jsConfigFilePath = findResponsibleJSConfigPath(specifier)
-    if (jsConfigFilePath !== undefined) {
-      const jsConfigValue = readJSONFileAsValue(jsConfigFilePath)
-      if (jsConfigValue?.compilerOptions?.paths !== undefined) {
+    const responsibleJSConfig = getResponsibleJSConfig(specifier)
+    if (responsibleJSConfig !== undefined) {
+      const { configFilePath, configValue } = responsibleJSConfig
+      if (configValue?.compilerOptions?.paths !== undefined) {
         initialConfig = {
-          baseUrl: path.resolve(path.dirname(jsConfigFilePath), jsConfigValue.compilerOptions.baseUrl ?? '.'),
-          paths: jsConfigValue.compilerOptions.paths
+          baseUrl: path.resolve(path.dirname(configFilePath), configValue.compilerOptions.baseUrl ?? '.'),
+          paths: configValue.compilerOptions.paths
         }
       }
     }
   }
 
   const aliasConfig: AliasConfig = { files: {}, directorys: {} }
-
   if (initialConfig === undefined) {
     return undefined
-  } else {
-    const baseUrl = initialConfig.baseUrl
-    const DIRECTORY_ALIAS_POSTFIX = '/*'
-    Object.entries(initialConfig.paths).forEach(([alias, mappings]) => {
-      if (alias.endsWith(DIRECTORY_ALIAS_POSTFIX)) {
-        const normalizedAlias = path.normalize(alias.slice(0, -DIRECTORY_ALIAS_POSTFIX.length))
-        aliasConfig.directorys[normalizedAlias] = aliasConfig.directorys[normalizedAlias] ?? []
-        mappings.forEach(mapping => {
-          const validMappingPath = path.join(baseUrl, mapping.slice(0, -DIRECTORY_ALIAS_POSTFIX.length))
-          aliasConfig.directorys[normalizedAlias].push(validMappingPath)
-        })
-      } else {
-        const normalizedAlias = path.normalize(alias)
-        aliasConfig.files[normalizedAlias] = aliasConfig.files[normalizedAlias] ?? []
-        mappings.forEach(mapping => {
-          const validMappingPath = path.join(baseUrl, mapping)
-          aliasConfig.files[normalizedAlias].push(validMappingPath)
-        })
-      }
-    })
-    return aliasConfig
   }
+  const baseUrl = initialConfig.baseUrl
+  const DIRECTORY_ALIAS_POSTFIX = '/*'
+  Object.entries(initialConfig.paths).forEach(([alias, mappings]) => {
+    if (alias.endsWith(DIRECTORY_ALIAS_POSTFIX)) {
+      const normalizedAlias = path.normalize(alias.slice(0, -DIRECTORY_ALIAS_POSTFIX.length))
+      aliasConfig.directorys[normalizedAlias] = aliasConfig.directorys[normalizedAlias] ?? []
+      mappings.forEach(mapping => {
+        const validMappingPath = path.join(baseUrl, mapping.slice(0, -DIRECTORY_ALIAS_POSTFIX.length))
+        aliasConfig.directorys[normalizedAlias].push(validMappingPath)
+      })
+    } else {
+      const normalizedAlias = path.normalize(alias)
+      aliasConfig.files[normalizedAlias] = aliasConfig.files[normalizedAlias] ?? []
+      mappings.forEach(mapping => {
+        const validMappingPath = path.join(baseUrl, mapping)
+        aliasConfig.files[normalizedAlias].push(validMappingPath)
+      })
+    }
+  })
+  return aliasConfig
 }
 
 export const isAliasSpecifier = (specifier: string): boolean => {
@@ -119,19 +72,25 @@ export const isAliasSpecifier = (specifier: string): boolean => {
   }
 
   // 检查是否属于文件别名
-  if (Object.keys(responsibleAliasConfig.files).includes(normalizedSpecifier)) {
+  const fileAlias = Object.keys(responsibleAliasConfig.files).find(alias => alias === normalizedSpecifier)
+  if (fileAlias !== undefined) {
     return true
-  } else {
-    // 检查是否属于目录别名
-    return Object.keys(responsibleAliasConfig.directorys).some(alias => normalizedSpecifier.startsWith(alias))
   }
+  // 检查是否属于目录别名
+  const directoryAlias = Object.keys(responsibleAliasConfig.directorys).find(alias => normalizedSpecifier.startsWith(alias))
+  if (directoryAlias !== undefined) {
+    return true
+  }
+
+  return false
 }
 export const resolveAliasSpecifier: ChildResolveHookOfESMLoader = async (specifier, context, defaultResolve, parentResolve) => {
-  console.log('[ts-loader] resolve alias specifier: ', specifier)
+  Logger.log(`[AliasResolve] enter: ${specifier}`)
 
   const responsibleAliasConfig = getResponsibleAliasConfig(specifier)
   if (responsibleAliasConfig === undefined) {
-    throw new Error('[resolveAliasSpecifier] responsibleAliasConfig is not found.')
+    Logger.log('[AliasResolve] responsible alias config is unexpectedly not found.')
+    throw new Error('[AliasResolve] responsible alias config is unexpectedly not found.')
   }
 
   const normalizedSpecifier = path.normalize(specifier)
@@ -139,35 +98,69 @@ export const resolveAliasSpecifier: ChildResolveHookOfESMLoader = async (specifi
 
   const fileAlias = Object.keys(files).find(alias => alias === normalizedSpecifier)
   if (fileAlias !== undefined) {
+    Logger.log(`[AliasResolve] specifier hits file alias: ${fileAlias}`)
     const mappings = files[fileAlias]
+    Logger.log(`[AliasResolve] ${mappings.length} file alias mappings found for ${fileAlias}`)
     let index = 0
     try {
-      return await parentResolve(mappings[index], context, defaultResolve)
+      Logger.log(`[AliasResolve] try to resolve [${index + 1}/${mappings.length}] of mappings: ${mappings[index]}`)
+      const resolvedSpecifier = mappings[index]
+      Logger.log(`[AliasResolve] pass handled specifier to main resolve: ${resolvedSpecifier}`)
+      return await parentResolve(resolvedSpecifier, context, defaultResolve)
     } catch (error) {
       index = index + 1
       if (index < mappings.length) {
+        Logger.log(`[AliasResolve] try to resolve [${index + 1}/${mappings.length}] of mappings: ${mappings[index]}`)
+        const resolvedSpecifier = mappings[index]
+        Logger.log(`[AliasResolve] pass handled specifier to main resolve: ${resolvedSpecifier}`)
         return await parentResolve(mappings[index], context, defaultResolve)
       } else {
-        return await defaultResolve(specifier, context, defaultResolve)
+        Logger.log(`[AliasResolve] pass specifier to Node.js default resolve: ${specifier}`)
+        // @see https://nodejs.org/api/errors.html#err_invalid_url
+        const defaultResolveContext = {
+          ...context, parentURL: context.parentURL !== undefined ? pathToFileURL(context.parentURL).href : undefined
+        }
+        Logger.log(`[AliasResolve] default resolve context: ${JSON.stringify(defaultResolveContext)}`)
+        return await defaultResolve(specifier, defaultResolveContext, defaultResolve)
       }
     }
   }
 
   const directoryAlias = Object.keys(directorys).find(alias => specifier.startsWith(alias))
   if (directoryAlias !== undefined) {
+    Logger.log(`[AliasResolve] specifier hits directoryAlias alias: ${directoryAlias}`)
     const mappings = directorys[directoryAlias]
+    Logger.log(`[AliasResolve] ${mappings.length} directory alias mappings found for ${directoryAlias}`)
     let index = 0
     try {
-      return await parentResolve(normalizedSpecifier.replace(directoryAlias, mappings[index]), context, defaultResolve)
+      Logger.log(`[AliasResolve] try to resolve [${index + 1}/${mappings.length}] of mappings: ${mappings[index]}`)
+      const resolvedSpecifier = normalizedSpecifier.replace(directoryAlias, mappings[index])
+      Logger.log(`[AliasResolve] pass handled specifier to main resolve: ${resolvedSpecifier}`)
+      return await parentResolve(resolvedSpecifier, context, defaultResolve)
     } catch (error) {
       index = index + 1
       if (index < mappings.length) {
-        return await parentResolve(normalizedSpecifier.replace(directoryAlias, mappings[index]), context, defaultResolve)
+        Logger.log(`[AliasResolve] try to resolve [${index + 1}/${mappings.length}] of mappings: ${mappings[index]}`)
+        const resolvedSpecifier = normalizedSpecifier.replace(directoryAlias, mappings[index])
+        Logger.log(`[AliasResolve] pass handled specifier to main resolve: ${resolvedSpecifier}`)
+        return await parentResolve(resolvedSpecifier, context, defaultResolve)
       } else {
-        return await defaultResolve(specifier, context, defaultResolve)
+        Logger.log(`[AliasResolve] pass specifier to Node.js default resolve: ${specifier}`)
+        // @see https://nodejs.org/api/errors.html#err_invalid_url
+        const defaultResolveContext = {
+          ...context, parentURL: context.parentURL !== undefined ? pathToFileURL(context.parentURL).href : undefined
+        }
+        Logger.log(`[AliasResolve] default resolve context: ${JSON.stringify(defaultResolveContext)}`)
+        return await defaultResolve(specifier, defaultResolveContext, defaultResolve)
       }
     }
   }
 
-  return await defaultResolve(specifier, context, defaultResolve)
+  Logger.log(`[AliasResolve] pass specifier to Node.js default resolve: ${specifier}`)
+  // @see https://nodejs.org/api/errors.html#err_invalid_url
+  const defaultResolveContext = {
+    ...context, parentURL: context.parentURL !== undefined ? pathToFileURL(context.parentURL).href : undefined
+  }
+  Logger.log(`[AliasResolve] default resolve context: ${JSON.stringify(defaultResolveContext)}`)
+  return await defaultResolve(specifier, defaultResolveContext, defaultResolve)
 }

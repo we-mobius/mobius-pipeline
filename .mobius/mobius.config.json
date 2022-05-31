@@ -1,1 +1,6 @@
-{}
+{
+  "ESMLoader": {
+    "debug": true,
+    "traceResolve": false
+  }
+}

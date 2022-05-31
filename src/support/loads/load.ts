@@ -1,5 +1,6 @@
 import * as SWC from '@swc/core'
-import type { LoadHookOfESMLoader } from './loaders'
+
+import type { LoadHookOfESMLoader } from '../loaders'
 
 export const load: LoadHookOfESMLoader = async (url, context, defaultLoad) => {
   if (url.endsWith('.ts')) {

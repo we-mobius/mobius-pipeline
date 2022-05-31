@@ -86,7 +86,7 @@
     "bin": "./bin"
   },
   "bin": {
-    "mo": "./bin/mo.js"
+    "mow": "./bin/mow.js"
   },
   "scripts": {
     "lint": "npx eslint ./src",
@@ -147,7 +147,6 @@
   "dependencies": {
     "@swc/core": "^1.2.189",
     "esbuild": "^0.14.41",
-    "ts-node": "^10.8.0",
     "uuid": "^8.3.2"
   }
 }

@@ -1,14 +1,16 @@
 import * as path from 'node:path'
+import { LoggerForResolve as Logger } from '../common/logger'
+
 import type { ChildResolveHookOfESMLoader } from '../loaders'
 
 export const isRelativeSpecifier = (specifier: string): boolean => specifier.startsWith('.')
 
 export const resolveRelativeSpecifier: ChildResolveHookOfESMLoader = async (specifier, context, defaultResolve, parentResolve) => {
-  console.log('[ts-loader] resolve relative path: ', specifier)
+  Logger.log(`[RelativeResolve] enter: ${specifier}`)
   const { parentURL } = context
   const baseURL = parentURL ?? process.cwd()
-  console.log('[ts-loader] relative in: ', baseURL)
+  Logger.log(`[RelativeResolve] specifier considered relative to: ${baseURL}`)
   const resolvedSpecifier = path.resolve(baseURL, '../', specifier)
-  console.log('[ts-loader] resolved relative path: ', resolvedSpecifier)
+  Logger.log(`[RelativeResolve] pass handled specifier to main resolve: ${resolvedSpecifier}`)
   return await parentResolve(resolvedSpecifier, context, defaultResolve)
 }

@@ -26,7 +26,40 @@
 
 ## Documentation
 
-Some of brief instruction.
+### How to use?
+
+Using `npm install @we-mobius/mobius-pipeline -D` to install it in local or using `npm install @we-mobius/mobius-pipeline -g` to install it in global.
+
+```bash
+# locally use
+npx mow run ./path/to/ts/file
+# globally use
+mow run ./path/to/ts/file
+```
+
+### How to dev?
+
+Clone the repo to your local machine and initialize it via `npm install`.
+
+Since you are prepared, run `npm run build-loader` at first, you will get an esm-loader for Node.js interpreter.
+
+Then you can use that loader to run any TypeScript file directly via Node.js. For example:
+
+```bash
+node --loader file://D://Root//Files//CodeSpace//mobius-project-workspace//mobius-pipeline//dist//support/loader.js .\\src\\executables\\build.ts
+```
+
+If you execute the command above, you've got a simpler runner, which can run any TypeScript file directly as well, in a nicer way.
+
+```bash
+node ./bin/mow.js run .\\public\\examples\\main.ts
+```
+
+As the `mow.js` is declared as a executable in `package.json`'s `bin` field, you can register it as a global command using `npm install -g ./`. Then it can be invoked by `mow`. For example:
+
+```bash
+mow run .\\public\\examples\\main.ts
+```
 
 ## Built With
 
